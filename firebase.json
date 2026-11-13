@@ -1,0 +1,21 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-android-septis-cd445419-e7c2-4c80-a5a6-3ee569f48847",
+      "rules": "firestore.rules"
+    }
+  ],
+  "emulators": {
+    "firestore": {
+      "host": "127.0.0.1",
+      "port": 8085
+    },
+    "auth": {
+      "host": "127.0.0.1",
+      "port": 9099
+    },
+    "ui": {
+      "enabled": false
+    }
+  }
+}

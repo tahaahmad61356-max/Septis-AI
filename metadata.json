@@ -1,0 +1,6 @@
+{
+  "name": "SEPTIS",
+  "description": "SEPTIS — Secure Role-Based Admin & User Management and Communication Platform",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

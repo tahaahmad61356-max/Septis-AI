@@ -1,0 +1,391 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isBootstrapAdmin() {
+      return isSignedIn() &&
+             request.auth.token.email_verified == true &&
+             request.auth.token.email == 'tahaahmad61357@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() ||
+             (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isActiveUserCanPost() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active' &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.canPostContent == true;
+    }
+
+    // --- Validation Helpers ---
+    function isValidAdminDoc(data, adminUid) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'grantedBy', 'createdAt']) &&
+             data.keys().hasOnly(['uid', 'email', 'displayName', 'grantedBy', 'createdAt']) &&
+             data.uid is string && data.uid == adminUid && data.uid.size() <= 128 &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 128 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    function isValidAdminVault(data) {
+      return data.keys().hasAll(['salt', 'codeHash', 'updatedBy', 'updatedAt']) &&
+             data.keys().hasOnly(['salt', 'codeHash', 'updatedBy', 'updatedAt']) &&
+             data.salt is string && data.salt.size() >= 16 && data.salt.size() <= 64 &&
+             data.codeHash is string && data.codeHash.size() == 64 && data.codeHash.matches('^[a-f0-9]{64}$') &&
+             data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAdminSession(data, uid) {
+      return data.keys().hasAll(['uid', 'submittedHash', 'deviceLabel', 'verifiedAt']) &&
+             data.keys().hasOnly(['uid', 'submittedHash', 'deviceLabel', 'verifiedAt']) &&
+             data.uid is string && data.uid == uid && data.uid.size() <= 128 &&
+             data.submittedHash is string && data.submittedHash.size() == 64 && data.submittedHash.matches('^[a-f0-9]{64}$') &&
+             data.deviceLabel is string && data.deviceLabel.size() >= 1 && data.deviceLabel.size() <= 120 &&
+             isValidTimestamp(data.verifiedAt);
+    }
+
+    function isValidUserDoc(data, userId) {
+      return data.keys().hasAll(['userId', 'email', 'displayName', 'role', 'status', 'canEditProfile', 'canPostContent', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'email', 'displayName', 'bio', 'department', 'phone', 'role', 'status', 'canEditProfile', 'canPostContent', 'createdAt', 'updatedAt']) &&
+             data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             (!('bio' in data) || data.bio == null || (data.bio is string && data.bio.size() <= 300)) &&
+             (!('department' in data) || data.department == null || (data.department is string && data.department.size() <= 100)) &&
+             (!('phone' in data) || data.phone == null || (data.phone is string && data.phone.size() <= 40)) &&
+             data.role is string && data.role == 'user' &&
+             data.status is string && data.status in ['active', 'deactivated', 'suspended'] &&
+             data.canEditProfile is bool &&
+             data.canPostContent is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidPasscodeDoc(data, userId) {
+      return data.keys().hasAll(['userId', 'salt', 'pinHash', 'updatedAt']) &&
+             data.keys().hasOnly(['userId', 'salt', 'pinHash', 'updatedAt']) &&
+             data.userId is string && data.userId == userId && data.userId.size() <= 128 &&
+             data.salt is string && data.salt.size() >= 16 && data.salt.size() <= 64 &&
+             data.pinHash is string && data.pinHash.size() == 64 && data.pinHash.matches('^[a-f0-9]{64}$') &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidPendingAccount(data) {
+      return data.keys().hasAll(['email', 'displayName', 'status', 'canEditProfile', 'canPostContent', 'claimed', 'createdBy', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['email', 'displayName', 'department', 'bio', 'phone', 'status', 'canEditProfile', 'canPostContent', 'claimed', 'claimedUid', 'createdBy', 'createdAt', 'updatedAt']) &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             (!('department' in data) || data.department == null || (data.department is string && data.department.size() <= 100)) &&
+             (!('bio' in data) || data.bio == null || (data.bio is string && data.bio.size() <= 300)) &&
+             (!('phone' in data) || data.phone == null || (data.phone is string && data.phone.size() <= 40)) &&
+             data.status is string && data.status in ['active', 'deactivated', 'suspended'] &&
+             data.canEditProfile is bool &&
+             data.canPostContent is bool &&
+             data.claimed is bool &&
+             (!('claimedUid' in data) || data.claimedUid == null || (data.claimedUid is string && data.claimedUid.size() <= 128)) &&
+             data.createdBy is string && data.createdBy.size() >= 1 && data.createdBy.size() <= 128 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['title', 'body', 'priority', 'pinned', 'visibility', 'authorUid', 'authorName', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['title', 'body', 'priority', 'pinned', 'visibility', 'authorUid', 'authorName', 'createdAt', 'updatedAt']) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+             data.body is string && data.body.size() >= 1 && data.body.size() <= 2000 &&
+             data.priority is string && data.priority in ['normal', 'important', 'urgent'] &&
+             data.pinned is bool &&
+             data.visibility is string && data.visibility in ['all', 'admin_only'] &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 100 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidRecord(data) {
+      return data.keys().hasAll(['title', 'content', 'category', 'status', 'visibility', 'isProtected', 'authorUid', 'authorName', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['title', 'content', 'category', 'status', 'visibility', 'isProtected', 'authorUid', 'authorName', 'createdAt', 'updatedAt']) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+             data.content is string && data.content.size() >= 1 && data.content.size() <= 3000 &&
+             data.category is string && data.category in ['chat', 'connect', 'share', 'resource'] &&
+             data.status is string && data.status in ['published', 'restricted', 'archived'] &&
+             data.visibility is string && data.visibility in ['all', 'admin_only'] &&
+             data.isProtected is bool &&
+             data.authorUid is string && data.authorUid.size() >= 1 && data.authorUid.size() <= 128 &&
+             data.authorName is string && data.authorName.size() >= 1 && data.authorName.size() <= 100 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidNotification(data) {
+      return data.keys().hasAll(['recipientUid', 'title', 'message', 'type', 'isRead', 'senderUid', 'createdAt', 'updatedAt']) &&
+             data.keys().hasOnly(['recipientUid', 'title', 'message', 'type', 'isRead', 'senderUid', 'createdAt', 'updatedAt']) &&
+             data.recipientUid is string && data.recipientUid.size() >= 1 && data.recipientUid.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 150 &&
+             data.message is string && data.message.size() >= 1 && data.message.size() <= 1000 &&
+             data.type is string && data.type in ['info', 'alert', 'account'] &&
+             data.isRead is bool &&
+             data.senderUid is string && data.senderUid.size() >= 1 && data.senderUid.size() <= 128 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAppSettings(data) {
+      return data.keys().hasAll(['appBannerMessage', 'allowUserPosting', 'allowUserProfileEdits', 'maintenanceMode', 'updatedBy', 'updatedAt']) &&
+             data.keys().hasOnly(['appBannerMessage', 'allowUserPosting', 'allowUserProfileEdits', 'maintenanceMode', 'updatedBy', 'updatedAt']) &&
+             data.appBannerMessage is string && data.appBannerMessage.size() <= 300 &&
+             data.allowUserPosting is bool &&
+             data.allowUserProfileEdits is bool &&
+             data.maintenanceMode is bool &&
+             data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['action', 'actorUid', 'actorEmail', 'targetId', 'details', 'createdAt']) &&
+             data.keys().hasOnly(['action', 'actorUid', 'actorEmail', 'targetId', 'details', 'createdAt']) &&
+             data.action is string && data.action.size() >= 1 && data.action.size() <= 80 &&
+             data.actorUid is string && data.actorUid.size() >= 1 && data.actorUid.size() <= 128 &&
+             data.actorEmail is string && data.actorEmail.size() >= 3 && data.actorEmail.size() <= 200 &&
+             data.targetId is string && data.targetId.size() <= 128 &&
+             data.details is string && data.details.size() <= 500 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Authorized Admins Registry (Strictly private to admins; only bootstrap owner writes)
+    match /admins/{adminUid} {
+      allow get, list: if isAdmin();
+      allow create, update: if isBootstrapAdmin() &&
+                               isValidId(adminUid) &&
+                               isValidAdminDoc(incoming(), adminUid);
+      allow delete: if isBootstrapAdmin() && adminUid != request.auth.uid;
+    }
+
+    // 2. Confidential Admin Access Code Vault (Salted SHA-256 hash, never readable by users)
+    match /admin_vault/{docId} {
+      allow get: if isAdmin() && docId == 'config';
+      allow list: if false;
+      allow create, update: if isAdmin() &&
+                               docId == 'config' &&
+                               isValidAdminVault(incoming());
+      allow delete: if false;
+    }
+
+    // 3. Backend-Verified Admin Sessions (Requires hash match against admin_vault/config)
+    match /admin_sessions/{uid} {
+      allow get: if isAdmin() && request.auth.uid == uid;
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() &&
+                               isValidId(uid) &&
+                               request.auth.uid == uid &&
+                               isValidAdminSession(incoming(), uid) &&
+                               exists(/databases/$(database)/documents/admin_vault/config) &&
+                               incoming().submittedHash == get(/databases/$(database)/documents/admin_vault/config).data.codeHash;
+      allow delete: if isAdmin() && request.auth.uid == uid;
+    }
+
+    // 4. User Accounts (PII isolated to owner & Admin; users can never elevate role or status)
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserDoc(incoming(), userId) && (
+                         isAdmin() ||
+                         (
+                           request.auth.uid == userId &&
+                           incoming().role == 'user' &&
+                           incoming().status == 'active' &&
+                           incoming().canEditProfile == true &&
+                           incoming().canPostContent == true
+                         )
+                       );
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidUserDoc(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (
+                           request.auth.uid == userId &&
+                           existing().status == 'active' &&
+                           existing().canEditProfile == true &&
+                           incoming().role == existing().role &&
+                           incoming().status == existing().status &&
+                           incoming().canEditProfile == existing().canEditProfile &&
+                           incoming().canPostContent == existing().canPostContent &&
+                           incoming().email == existing().email &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'bio', 'department', 'phone', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+
+      // Personal user passcode hash subcollection
+      match /security/{docId} {
+        allow get: if isSignedIn() && docId == 'passcode' && (request.auth.uid == userId || isAdmin());
+        allow list: if false;
+        allow create, update: if isSignedIn() &&
+                                 docId == 'passcode' &&
+                                 request.auth.uid == userId &&
+                                 isValidPasscodeDoc(incoming(), userId);
+        allow delete: if isAdmin() || (isSignedIn() && docId == 'passcode' && request.auth.uid == userId);
+      }
+    }
+
+    // 5. Admin Pre-Provisioned User Accounts
+    match /pending_accounts/{inviteId} {
+      allow get: if isAdmin() || (isSignedIn() && request.auth.token.email_verified == true && resource.data.email == request.auth.token.email);
+      allow list: if isAdmin() || (isSignedIn() && request.auth.token.email_verified == true && resource.data.email == request.auth.token.email);
+      allow create: if isAdmin() && isValidId(inviteId) && isValidPendingAccount(incoming());
+      allow update: if isSignedIn() &&
+                       isValidId(inviteId) &&
+                       isValidPendingAccount(incoming()) &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (
+                           request.auth.token.email_verified == true &&
+                           existing().email == request.auth.token.email &&
+                           existing().claimed == false &&
+                           incoming().claimed == true &&
+                           incoming().claimedUid == request.auth.uid &&
+                           incoming().email == existing().email &&
+                           incoming().displayName == existing().displayName &&
+                           incoming().status == existing().status &&
+                           incoming().canEditProfile == existing().canEditProfile &&
+                           incoming().canPostContent == existing().canPostContent &&
+                           incoming().createdBy == existing().createdBy &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['claimed', 'claimedUid', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 6. Announcements (Admin publishes; Users read visibility == 'all')
+    match /announcements/{announcementId} {
+      allow get: if isSignedIn() && (resource.data.visibility == 'all' || isAdmin());
+      allow list: if isSignedIn() && (resource.data.visibility == 'all' || isAdmin());
+      allow create: if isAdmin() &&
+                       isValidId(announcementId) &&
+                       isValidAnnouncement(incoming()) &&
+                       incoming().authorUid == request.auth.uid;
+      allow update: if isAdmin() &&
+                       isValidId(announcementId) &&
+                       isValidAnnouncement(incoming()) &&
+                       incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin();
+    }
+
+    // 7. SEPTIS Records (Chat, Connect, Share hub items)
+    match /records/{recordId} {
+      allow get: if isSignedIn() && (resource.data.visibility == 'all' || resource.data.authorUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.visibility == 'all' || resource.data.authorUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() &&
+                       isValidId(recordId) &&
+                       isValidRecord(incoming()) && (
+                         isAdmin() ||
+                         (
+                           incoming().authorUid == request.auth.uid &&
+                           incoming().visibility == 'all' &&
+                           incoming().status == 'published' &&
+                           incoming().isProtected == false &&
+                           isActiveUserCanPost()
+                         )
+                       );
+      allow update: if isSignedIn() &&
+                       isValidId(recordId) &&
+                       isValidRecord(incoming()) &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (
+                           existing().authorUid == request.auth.uid &&
+                           existing().isProtected == false &&
+                           incoming().authorUid == existing().authorUid &&
+                           incoming().isProtected == existing().isProtected &&
+                           incoming().visibility == existing().visibility &&
+                           incoming().status == existing().status &&
+                           isActiveUserCanPost() &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'category', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.authorUid == request.auth.uid && resource.data.isProtected == false);
+    }
+
+    // 8. Notifications (Admin sends; Recipients read & mark isRead)
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && (resource.data.recipientUid == request.auth.uid || resource.data.recipientUid == 'all' || isAdmin());
+      allow list: if isSignedIn() && (resource.data.recipientUid == request.auth.uid || resource.data.recipientUid == 'all' || isAdmin());
+      allow create: if isAdmin() &&
+                       isValidId(notificationId) &&
+                       isValidNotification(incoming()) &&
+                       incoming().senderUid == request.auth.uid;
+      allow update: if isSignedIn() &&
+                       isValidId(notificationId) &&
+                       isValidNotification(incoming()) &&
+                       incoming().createdAt == existing().createdAt && (
+                         isAdmin() ||
+                         (
+                           existing().recipientUid == request.auth.uid &&
+                           incoming().recipientUid == existing().recipientUid &&
+                           incoming().senderUid == existing().senderUid &&
+                           incoming().title == existing().title &&
+                           incoming().message == existing().message &&
+                           incoming().type == existing().type &&
+                           incoming().diff(existing()).affectedKeys().hasOnly(['isRead', 'updatedAt'])
+                         )
+                       );
+      allow delete: if isAdmin();
+    }
+
+    // 9. Global App Settings (Admin writes; Signed-in users read global config)
+    match /app_settings/{settingId} {
+      allow get: if isSignedIn() && settingId == 'global';
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() &&
+                               settingId == 'global' &&
+                               isValidAppSettings(incoming());
+      allow delete: if false;
+    }
+
+    // 10. Append-Only Audit & Activity Logs
+    match /audit_logs/{logId} {
+      allow get, list: if isAdmin();
+      allow create: if isSignedIn() &&
+                       isValidId(logId) &&
+                       isValidAuditLog(incoming()) &&
+                       incoming().actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}

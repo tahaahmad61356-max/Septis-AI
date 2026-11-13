@@ -1,0 +1,219 @@
+{
+  "entities": {
+    "AdminMember": {
+      "title": "AdminMember",
+      "description": "Authorized administrator identity verified by backend rules.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "grantedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["uid", "email", "displayName", "grantedBy", "createdAt"]
+    },
+    "AdminVaultConfig": {
+      "title": "AdminVaultConfig",
+      "description": "Salted SHA-256 hash configuration for the confidential Admin Access Code.",
+      "type": "object",
+      "properties": {
+        "salt": { "type": "string" },
+        "codeHash": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["salt", "codeHash", "updatedBy", "updatedAt"]
+    },
+    "AdminSession": {
+      "title": "AdminSession",
+      "description": "Backend-verified admin login session validated against AdminVaultConfig.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "submittedHash": { "type": "string" },
+        "deviceLabel": { "type": "string" },
+        "verifiedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["uid", "submittedHash", "deviceLabel", "verifiedAt"]
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "SEPTIS user account with admin-governed status and permissions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "bio": { "type": "string" },
+        "department": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["user"] },
+        "status": { "type": "string", "enum": ["active", "deactivated", "suspended"] },
+        "canEditProfile": { "type": "boolean" },
+        "canPostContent": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "email", "displayName", "role", "status", "canEditProfile", "canPostContent", "createdAt", "updatedAt"]
+    },
+    "UserPasscode": {
+      "title": "UserPasscode",
+      "description": "Hashed personal app-lock passcode for a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "salt": { "type": "string" },
+        "pinHash": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["userId", "salt", "pinHash", "updatedAt"]
+    },
+    "PendingAccount": {
+      "title": "PendingAccount",
+      "description": "Pre-provisioned user account created by an Admin awaiting user sign-in.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "department": { "type": "string" },
+        "bio": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "deactivated", "suspended"] },
+        "canEditProfile": { "type": "boolean" },
+        "canPostContent": { "type": "boolean" },
+        "claimed": { "type": "boolean" },
+        "claimedUid": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["email", "displayName", "status", "canEditProfile", "canPostContent", "claimed", "createdBy", "createdAt", "updatedAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Admin-published announcement or alert for SEPTIS users.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "priority": { "type": "string", "enum": ["normal", "important", "urgent"] },
+        "pinned": { "type": "boolean" },
+        "visibility": { "type": "string", "enum": ["all", "admin_only"] },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["title", "body", "priority", "pinned", "visibility", "authorUid", "authorName", "createdAt", "updatedAt"]
+    },
+    "SeptisRecord": {
+      "title": "SeptisRecord",
+      "description": "Chat, Connect, or Share hub record stored in SEPTIS.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "category": { "type": "string", "enum": ["chat", "connect", "share", "resource"] },
+        "status": { "type": "string", "enum": ["published", "restricted", "archived"] },
+        "visibility": { "type": "string", "enum": ["all", "admin_only"] },
+        "isProtected": { "type": "boolean" },
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["title", "content", "category", "status", "visibility", "isProtected", "authorUid", "authorName", "createdAt", "updatedAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Targeted or broadcast notification sent by Admin.",
+      "type": "object",
+      "properties": {
+        "recipientUid": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "alert", "account"] },
+        "isRead": { "type": "boolean" },
+        "senderUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["recipientUid", "title", "message", "type", "isRead", "senderUid", "createdAt", "updatedAt"]
+    },
+    "AppSettings": {
+      "title": "AppSettings",
+      "description": "Global application settings controlled exclusively by Admin.",
+      "type": "object",
+      "properties": {
+        "appBannerMessage": { "type": "string" },
+        "allowUserPosting": { "type": "boolean" },
+        "allowUserProfileEdits": { "type": "boolean" },
+        "maintenanceMode": { "type": "boolean" },
+        "updatedBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["appBannerMessage", "allowUserPosting", "allowUserProfileEdits", "maintenanceMode", "updatedBy", "updatedAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Append-only activity and administrative audit log.",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string" },
+        "actorUid": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "targetId": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+      },
+      "required": ["action", "actorUid", "actorEmail", "targetId", "details", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminMember" },
+      "description": "Authorized admin registry."
+    },
+    "/admin_vault/{docId}": {
+      "schema": { "$ref": "#/entities/AdminVaultConfig" },
+      "description": "Confidential salted hash of the Admin Access Code."
+    },
+    "/admin_sessions/{uid}": {
+      "schema": { "$ref": "#/entities/AdminSession" },
+      "description": "Backend-verified admin authentication sessions."
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Individual user accounts managed by Admin and self."
+    },
+    "/users/{userId}/security/{docId}": {
+      "schema": { "$ref": "#/entities/UserPasscode" },
+      "description": "User personal passcode hash."
+    },
+    "/pending_accounts/{inviteId}": {
+      "schema": { "$ref": "#/entities/PendingAccount" },
+      "description": "Pre-provisioned user invites created by Admin."
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "Announcements published by Admin."
+    },
+    "/records/{recordId}": {
+      "schema": { "$ref": "#/entities/SeptisRecord" },
+      "description": "Shared SEPTIS Chat, Connect, Share records."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/NotificationItem" },
+      "description": "Notifications sent by Admin to users."
+    },
+    "/app_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Global application settings."
+    },
+    "/audit_logs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Append-only activity and audit trail."
+    }
+  }
+}
