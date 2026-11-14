@@ -17,8 +17,8 @@ android {
     applicationId = "com.aistudio.septis.kqvxrm"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 2
+    versionName = "2.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -152,6 +152,7 @@ val copyDebugApkToProjectExplorer =
     tasks.register<Copy>("copyDebugApkToProjectExplorer") {
       from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
       into(rootProject.layout.projectDirectory.dir("apk"))
+      rename { "septis-v2.0-debug.apk" }
     }
 
 tasks.matching { it.name == "assembleDebug" }.configureEach {
