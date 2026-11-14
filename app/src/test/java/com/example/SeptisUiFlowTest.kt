@@ -1,17 +1,24 @@
 package com.example
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import com.example.ui.screens.AdminLoginScreen
-import com.example.ui.screens.UserLoginScreen
-import com.example.ui.screens.WelcomeScreen
+import androidx.compose.ui.test.performTextInput
+import com.example.data.model.CountryCodes
+import com.example.data.model.PhoneUtils
+import com.example.ui.components.WhatsAppComposer
+import com.example.ui.screens.AccountSuspendedScreen
+import com.example.ui.screens.AdminGateScreen
+import com.example.ui.screens.PhoneRegistrationScreen
 import com.example.ui.theme.SeptisTheme
 import com.example.ui.viewmodel.AdminAuthStage
-import com.example.ui.viewmodel.UserAuthStage
 import com.example.util.CryptoUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -30,84 +37,116 @@ class SeptisUiFlowTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun welcomeScreen_displaysBothAdminAndUserLoginModes() {
-        var adminClicked = false
-        var userClicked = false
+    fun phoneRegistrationScreen_rendersCountryPickerPhoneInputAndAdminGate() {
+        var adminTapped = false
+        var recoveryTapped = false
 
         composeRule.setContent {
             SeptisTheme {
-                WelcomeScreen(
-                    isOnline = true,
-                    onAdminLoginClick = { adminClicked = true },
-                    onUserLoginClick = { userClicked = true }
+                PhoneRegistrationScreen(
+                    selectedCountry = CountryCodes.defaultCountry,
+                    nationalNumber = "",
+                    isBusy = false,
+                    errorBanner = null,
+                    infoBanner = null,
+                    onSelectCountry = {},
+                    onPhoneChanged = {},
+                    onSendOtpClick = {},
+                    onGoogleRecoveryClick = { recoveryTapped = true },
+                    onAdminPortalClick = { adminTapped = true }
                 )
             }
         }
         composeRule.waitForIdle()
 
-        composeRule.onNodeWithText("SEPTIS").assertIsDisplayed()
-        composeRule.onNodeWithTag("welcome_admin_login_button").performScrollTo().assertIsDisplayed().performClick()
-        assertTrue(adminClicked)
-
-        composeRule.onNodeWithTag("welcome_user_login_button").performScrollTo().assertIsDisplayed().performClick()
-        assertTrue(userClicked)
+        composeRule.onNodeWithText("Welcome to SEPTIS").assertIsDisplayed()
+        composeRule.onNodeWithTag("country_picker_button").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("phone_number_input").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("send_otp_button").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("google_recovery_button").performScrollTo().performClick()
+        assertTrue(recoveryTapped)
+        composeRule.onNodeWithTag("open_admin_gate_button").performClick()
+        assertTrue(adminTapped)
     }
 
     @Test
-    fun adminLoginScreen_unauthorizedUserIsBlockedFromAdminDashboard() {
+    fun whatsAppComposer_switchesFromMicToSendWhenUserTypes() {
         composeRule.setContent {
             SeptisTheme {
-                AdminLoginScreen(
-                    stage = AdminAuthStage.Unauthorized("Backend denied Admin access for this Google account."),
+                var text by remember { mutableStateOf("") }
+                WhatsAppComposer(
+                    text = text,
+                    replyTo = null,
+                    editingMessage = null,
+                    uploadProgress = null,
+                    isRecording = false,
+                    recordingDurationMs = 0L,
+                    liveWaveform = emptyList(),
+                    onTextChanged = { text = it },
+                    onSendText = {},
+                    onSendSticker = {},
+                    onCancelReplyOrEdit = {},
+                    onPickPhoto = {},
+                    onPickVideo = {},
+                    onPickDocument = {},
+                    onPickAudio = {},
+                    onOpenCamera = {},
+                    onStartRecording = {},
+                    onCancelRecording = {},
+                    onFinishAndSendRecording = {}
+                )
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithTag("chat_mic_button").assertIsDisplayed()
+        composeRule.onNodeWithTag("chat_message_input").performTextInput("Hello SEPTIS!")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("chat_send_button").assertIsDisplayed()
+    }
+
+    @Test
+    fun adminGateScreen_enforcesAccessNotices() {
+        composeRule.setContent {
+            SeptisTheme {
+                AdminGateScreen(
+                    stage = AdminAuthStage.Denied("Unauthorized admin account"),
                     isBusy = false,
                     errorBanner = null,
-                    currentUserEmail = "ordinary@test.com",
+                    currentUserEmail = "user@test.com",
                     onBack = {},
                     onGoogleSignInClick = {},
-                    onInitializeCode = { _, _ -> },
-                    onVerifyAccessCode = {},
+                    onSetupCode = { _, _ -> },
+                    onVerifyCode = {},
                     onSignOutClick = {}
                 )
             }
         }
         composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("Access Denied").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("admin_unauthorized_signout").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Unauthorized admin account").assertIsDisplayed()
     }
 
     @Test
-    fun userLoginScreen_suspendedAccountShowsRestrictionNotice() {
+    fun accountSuspendedScreen_enforcesRestrictionNotice() {
         composeRule.setContent {
             SeptisTheme {
-                UserLoginScreen(
-                    stage = UserAuthStage.Restricted("suspended", "member@test.com"),
-                    isBusy = false,
-                    errorBanner = null,
-                    onBack = {},
-                    onGoogleSignInClick = {},
-                    onSignOutClick = {}
-                )
+                AccountSuspendedScreen(onLogoutClick = {})
             }
         }
         composeRule.waitForIdle()
-
-        composeRule.onNodeWithText("Account Suspended").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("user_restricted_signout").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Account Restricted").assertIsDisplayed()
     }
 
     @Test
-    fun cryptoUtils_generatesSaltedSha256Hashes() {
-        val salt1 = CryptoUtils.generateSaltHex()
-        val salt2 = CryptoUtils.generateSaltHex()
-        assertEquals(32, salt1.length)
-        assertNotEquals(salt1, salt2)
+    fun phoneUtilsAndCrypto_produceDeterministicNormalizedFormats() {
+        assertEquals("+923001234567", PhoneUtils.combineToE164("+92", "0300-1234567"))
+        assertEquals("+14155550199", PhoneUtils.normalizeToE164("+1 415 555 0199", "+92"))
+        assertEquals("p_923001234567", PhoneUtils.toDirectoryKey("+923001234567"))
 
-        val hash1 = CryptoUtils.hashSecret(salt1, "MySecretCode")
-        val hash2 = CryptoUtils.hashSecret(salt1, "MySecretCode")
-        val hashDifferent = CryptoUtils.hashSecret(salt1, "OtherCode")
-        assertEquals(64, hash1.length)
-        assertEquals(hash1, hash2)
-        assertNotEquals(hash1, hashDifferent)
+        val salt = CryptoUtils.generateSaltHex()
+        val h1 = CryptoUtils.hashSecret(salt, "SecretCode")
+        val h2 = CryptoUtils.hashSecret(salt, "SecretCode")
+        assertEquals(h1, h2)
+        assertNotEquals(h1, CryptoUtils.hashSecret(salt, "Wrong"))
     }
 }

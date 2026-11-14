@@ -32,9 +32,11 @@ abstract class FirestoreEmulatorTestBase {
 
     @Before
     open fun setUpFirebase() {
+        org.robolectric.shadows.ShadowLog.stream = System.out
         val context = ApplicationProvider.getApplicationContext<Context>()
         val resId = context.resources.getIdentifier("firestore_database_id", "string", context.packageName)
         databaseId = if (resId != 0) context.getString(resId) else "demo-database"
+        println("DEBUG_BASE: pkg=${context.packageName} resId=$resId db=$databaseId")
 
         val app = if (FirebaseApp.getApps(context).isEmpty()) {
             val newApp = FirebaseApp.initializeApp(
@@ -74,7 +76,10 @@ abstract class FirestoreEmulatorTestBase {
             } catch (unused: FirebaseAuthInvalidUserException) {
                 auth.createUserWithEmailAndPassword(email, DEFAULT_PASSWORD).await()
             }
-            checkNotNull(result.user?.uid) { "User auth failed" }
+            val user = checkNotNull(result.user) { "User auth failed" }
+            user.getIdToken(false).await()
+            kotlinx.coroutines.delay(250L)
+            user.uid
         }
     }
 

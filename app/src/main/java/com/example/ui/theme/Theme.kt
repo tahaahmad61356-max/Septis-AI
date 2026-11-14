@@ -7,7 +7,34 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+
+@Immutable
+data class SeptisChatColors(
+    val chatBackground: Color,
+    val outgoingBubble: Color,
+    val onOutgoingBubble: Color,
+    val incomingBubble: Color,
+    val onIncomingBubble: Color,
+    val readReceiptBlue: Color,
+    val onlineGreen: Color
+)
+
+val LocalSeptisChatColors = staticCompositionLocalOf {
+    SeptisChatColors(
+        chatBackground = ChatBgLight,
+        outgoingBubble = OutgoingBubbleLight,
+        onOutgoingBubble = OnOutgoingBubbleLight,
+        incomingBubble = IncomingBubbleLight,
+        onIncomingBubble = OnIncomingBubbleLight,
+        readReceiptBlue = ReadReceiptBlue,
+        onlineGreen = StatusActiveGreen
+    )
+}
 
 private val SeptisDarkColorScheme = darkColorScheme(
     primary = EmeraldPrimaryDark,
@@ -64,7 +91,7 @@ private val SeptisLightColorScheme = lightColorScheme(
 val SeptisShapes = Shapes(
     small = RoundedCornerShape(10.dp),
     medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(24.dp),
+    large = RoundedCornerShape(22.dp),
     extraLarge = RoundedCornerShape(28.dp)
 )
 
@@ -74,10 +101,34 @@ fun SeptisTheme(
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) SeptisDarkColorScheme else SeptisLightColorScheme
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = SeptisTypography,
-        shapes = SeptisShapes,
-        content = content
-    )
+    val chatColors = if (darkTheme) {
+        SeptisChatColors(
+            chatBackground = ChatBgDark,
+            outgoingBubble = OutgoingBubbleDark,
+            onOutgoingBubble = OnOutgoingBubbleDark,
+            incomingBubble = IncomingBubbleDark,
+            onIncomingBubble = OnIncomingBubbleDark,
+            readReceiptBlue = ReadReceiptBlue,
+            onlineGreen = StatusActiveGreen
+        )
+    } else {
+        SeptisChatColors(
+            chatBackground = ChatBgLight,
+            outgoingBubble = OutgoingBubbleLight,
+            onOutgoingBubble = OnOutgoingBubbleLight,
+            incomingBubble = IncomingBubbleLight,
+            onIncomingBubble = OnIncomingBubbleLight,
+            readReceiptBlue = ReadReceiptBlue,
+            onlineGreen = StatusActiveGreen
+        )
+    }
+
+    CompositionLocalProvider(LocalSeptisChatColors provides chatColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = SeptisTypography,
+            shapes = SeptisShapes,
+            content = content
+        )
+    }
 }

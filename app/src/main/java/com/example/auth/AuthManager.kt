@@ -16,9 +16,14 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.Companion.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
 import com.google.firebase.Firebase
+import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -28,6 +33,17 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
+
+sealed interface PhoneOtpCallback {
+    data class CodeSent(
+        val verificationId: String,
+        val resendToken: PhoneAuthProvider.ForceResendingToken
+    ) : PhoneOtpCallback
+
+    data class AutoVerified(val user: FirebaseUser) : PhoneOtpCallback
+    data class Failed(val message: String) : PhoneOtpCallback
+}
 
 object AuthManager {
     private const val TAG = "Auth"
@@ -38,6 +54,84 @@ object AuthManager {
         }
         auth.addAuthStateListener(listener)
         awaitClose { auth.removeAuthStateListener(listener) }
+    }
+
+    fun sendPhoneOtp(
+        activity: Activity,
+        phoneE164: String,
+        resendToken: PhoneAuthProvider.ForceResendingToken? = null,
+        linkToExistingUser: Boolean = false,
+        scope: CoroutineScope,
+        onResult: (PhoneOtpCallback) -> Unit
+    ) {
+        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                scope.launch {
+                    try {
+                        val user = completeWithPhoneCredential(credential, linkToExistingUser)
+                        onResult(PhoneOtpCallback.AutoVerified(user))
+                    } catch (e: Exception) {
+                        onResult(PhoneOtpCallback.Failed(e.localizedMessage ?: "Automatic OTP verification failed."))
+                    }
+                }
+            }
+
+            override fun onVerificationFailed(e: FirebaseException) {
+                Log.e(TAG, "Phone verification failed for $phoneE164", e)
+                val friendly = when {
+                    e.message?.contains("operation-not-allowed", ignoreCase = true) == true ->
+                        "Firebase Phone Authentication is not enabled yet in Firebase Console. Enable Phone under Authentication -> Sign-in method, or use Google Sign-In below."
+                    e.message?.contains("TOO_MANY_REQUESTS", ignoreCase = true) == true ->
+                        "Too many OTP attempts. Please wait a few minutes and try again."
+                    else -> e.localizedMessage ?: "Failed to send SMS OTP."
+                }
+                onResult(PhoneOtpCallback.Failed(friendly))
+            }
+
+            override fun onCodeSent(
+                verificationId: String,
+                token: PhoneAuthProvider.ForceResendingToken
+            ) {
+                onResult(PhoneOtpCallback.CodeSent(verificationId, token))
+            }
+        }
+
+        val builder = PhoneAuthOptions.newBuilder(Firebase.auth)
+            .setPhoneNumber(phoneE164)
+            .setTimeout(60L, TimeUnit.SECONDS)
+            .setActivity(activity)
+            .setCallbacks(callbacks)
+        if (resendToken != null) {
+            builder.setForceResendingToken(resendToken)
+        }
+        PhoneAuthProvider.verifyPhoneNumber(builder.build())
+    }
+
+    suspend fun verifyOtpCode(
+        verificationId: String,
+        smsCode: String,
+        linkToExistingUser: Boolean = false
+    ): Result<FirebaseUser> = runCatching {
+        val credential = PhoneAuthProvider.getCredential(verificationId, smsCode.trim())
+        completeWithPhoneCredential(credential, linkToExistingUser)
+    }
+
+    private suspend fun completeWithPhoneCredential(
+        credential: PhoneAuthCredential,
+        linkToExistingUser: Boolean
+    ): FirebaseUser {
+        val currentUser = Firebase.auth.currentUser
+        val result = if (linkToExistingUser && currentUser != null) {
+            try {
+                currentUser.linkWithCredential(credential).await()
+            } catch (_: FirebaseAuthUserCollisionException) {
+                // Phone already owns an account; sign into that verified phone account cleanly
+                Firebase.auth.signInWithCredential(credential).await()
+            }
+        } else {
+            Firebase.auth.signInWithCredential(credential).await()
+        }
+        return checkNotNull(result.user) { "Phone authentication succeeded without user identity." }
     }
 
     fun attemptAutoSignIn(
@@ -54,7 +148,7 @@ object AuthManager {
         }
         val clientId = try {
             context.getString(R.string.default_web_client_id)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             onUnauthenticated()
             return
         }
@@ -104,7 +198,7 @@ object AuthManager {
     ) {
         val clientId = try {
             context.getString(R.string.default_web_client_id)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             onAuthError("Google Sign-In configuration missing.")
             return
         }

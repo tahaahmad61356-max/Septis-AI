@@ -27,7 +27,7 @@
     },
     "AdminSession": {
       "title": "AdminSession",
-      "description": "Backend-verified admin login session validated against AdminVaultConfig.",
+      "description": "Backend-verified admin session validated against AdminVaultConfig.",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
@@ -39,60 +39,312 @@
     },
     "UserAccount": {
       "title": "UserAccount",
-      "description": "SEPTIS user account with admin-governed status and permissions.",
+      "description": "Private SEPTIS user profile, phone identity, presence, and privacy settings.",
       "type": "object",
       "properties": {
         "userId": { "type": "string" },
-        "email": { "type": "string" },
+        "phoneE164": { "type": "string" },
+        "countryCode": { "type": "string" },
+        "nationalNumber": { "type": "string" },
         "displayName": { "type": "string" },
-        "bio": { "type": "string" },
-        "department": { "type": "string" },
-        "phone": { "type": "string" },
+        "about": { "type": "string" },
+        "photoBlobId": { "type": "string" },
+        "email": { "type": "string" },
         "role": { "type": "string", "enum": ["user"] },
         "status": { "type": "string", "enum": ["active", "deactivated", "suspended"] },
+        "isOnline": { "type": "boolean" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "privacyLastSeen": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
+        "privacyPhoto": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
+        "privacyAbout": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
+        "readReceiptsEnabled": { "type": "boolean" },
+        "fcmToken": { "type": "string" },
         "canEditProfile": { "type": "boolean" },
         "canPostContent": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
         "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
       },
-      "required": ["userId", "email", "displayName", "role", "status", "canEditProfile", "canPostContent", "createdAt", "updatedAt"]
+      "required": ["userId", "phoneE164", "countryCode", "nationalNumber", "displayName", "about", "role", "status", "isOnline", "privacyLastSeen", "privacyPhoto", "privacyAbout", "readReceiptsEnabled", "canEditProfile", "canPostContent", "createdAt", "updatedAt"]
     },
-    "UserPasscode": {
-      "title": "UserPasscode",
-      "description": "Hashed personal app-lock passcode for a user.",
+    "PhoneDirectoryEntry": {
+      "title": "PhoneDirectoryEntry",
+      "description": "Unique E.164 phone lookup record enabling contact discovery without bulk scraping.",
       "type": "object",
       "properties": {
-        "userId": { "type": "string" },
-        "salt": { "type": "string" },
-        "pinHash": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
-      },
-      "required": ["userId", "salt", "pinHash", "updatedAt"]
-    },
-    "PendingAccount": {
-      "title": "PendingAccount",
-      "description": "Pre-provisioned user account created by an Admin awaiting user sign-in.",
-      "type": "object",
-      "properties": {
-        "email": { "type": "string" },
+        "phoneKey": { "type": "string" },
+        "uid": { "type": "string" },
+        "phoneE164": { "type": "string" },
         "displayName": { "type": "string" },
-        "department": { "type": "string" },
-        "bio": { "type": "string" },
-        "phone": { "type": "string" },
+        "about": { "type": "string" },
+        "photoBlobId": { "type": "string" },
+        "isOnline": { "type": "boolean" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "privacyLastSeen": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
+        "privacyPhoto": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
+        "privacyAbout": { "type": "string", "enum": ["everyone", "contacts", "nobody"] },
         "status": { "type": "string", "enum": ["active", "deactivated", "suspended"] },
-        "canEditProfile": { "type": "boolean" },
-        "canPostContent": { "type": "boolean" },
-        "claimed": { "type": "boolean" },
-        "claimedUid": { "type": "string" },
-        "createdBy": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["email", "displayName", "status", "canEditProfile", "canPostContent", "claimed", "createdBy", "createdAt", "updatedAt"]
+      "required": ["phoneKey", "uid", "phoneE164", "displayName", "about", "isOnline", "privacyLastSeen", "privacyPhoto", "privacyAbout", "status", "createdAt", "updatedAt"]
+    },
+    "SavedContact": {
+      "title": "SavedContact",
+      "description": "User's synced or saved SEPTIS contact entry.",
+      "type": "object",
+      "properties": {
+        "contactUid": { "type": "string" },
+        "phoneE164": { "type": "string" },
+        "displayName": { "type": "string" },
+        "localDeviceName": { "type": "string" },
+        "about": { "type": "string" },
+        "photoBlobId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["contactUid", "phoneE164", "displayName", "createdAt", "updatedAt"]
+    },
+    "BlockedUser": {
+      "title": "BlockedUser",
+      "description": "Blocked user entry managed by the owner.",
+      "type": "object",
+      "properties": {
+        "blockedUid": { "type": "string" },
+        "phoneE164": { "type": "string" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["blockedUid", "displayName", "createdAt"]
+    },
+    "StarredMessage": {
+      "title": "StarredMessage",
+      "description": "Starred message bookmark scoped to the owner.",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "messageId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "previewText": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversationId", "messageId", "senderName", "previewText", "createdAt"]
+    },
+    "ChatPreference": {
+      "title": "ChatPreference",
+      "description": "Per-user conversation preferences (pin, archive, mute, unread, draft).",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "pinned": { "type": "boolean" },
+        "archived": { "type": "boolean" },
+        "muted": { "type": "boolean" },
+        "unreadCount": { "type": "integer" },
+        "draftText": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversationId", "pinned", "archived", "muted", "unreadCount", "draftText", "updatedAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Direct 1-to-1 or Group conversation.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["direct", "group"] },
+        "participantUids": { "type": "array" },
+        "adminUids": { "type": "array" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "photoBlobId": { "type": "string" },
+        "communityId": { "type": "string" },
+        "onlyAdminsCanSend": { "type": "boolean" },
+        "onlyAdminsCanEditInfo": { "type": "boolean" },
+        "lastMessageText": { "type": "string" },
+        "lastMessageType": { "type": "string" },
+        "lastMessageSenderUid": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "typingUids": { "type": "array" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "participantUids", "adminUids", "title", "onlyAdminsCanSend", "onlyAdminsCanEditInfo", "lastMessageText", "lastMessageType", "typingUids", "createdBy", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Real-time message inside a conversation with receipts, replies, and media metadata.",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "participantUids": { "type": "array" },
+        "type": { "type": "string", "enum": ["text", "image", "video", "document", "audio", "voice", "sticker", "call_event"] },
+        "text": { "type": "string" },
+        "mediaBlobId": { "type": "string" },
+        "mediaMimeType": { "type": "string" },
+        "mediaFileName": { "type": "string" },
+        "mediaSizeBytes": { "type": "integer" },
+        "mediaDurationMs": { "type": "integer" },
+        "waveform": { "type": "array" },
+        "replyToId": { "type": "string" },
+        "replyToSender": { "type": "string" },
+        "replyToText": { "type": "string" },
+        "forwardedFrom": { "type": "string" },
+        "edited": { "type": "boolean" },
+        "deletedForEveryone": { "type": "boolean" },
+        "deletedForUids": { "type": "array" },
+        "deliveredToUids": { "type": "array" },
+        "readByUids": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["conversationId", "senderUid", "senderName", "participantUids", "type", "text", "edited", "deletedForEveryone", "deletedForUids", "deliveredToUids", "readByUids", "createdAt", "updatedAt"]
+    },
+    "MediaBlob": {
+      "title": "MediaBlob",
+      "description": "Uploaded binary attachment (image, video, PDF/doc, voice note, avatar).",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string" },
+        "scope": { "type": "string", "enum": ["public", "participants", "status"] },
+        "allowedUids": { "type": "array" },
+        "mimeType": { "type": "string" },
+        "fileName": { "type": "string" },
+        "sizeBytes": { "type": "integer" },
+        "chunkCount": { "type": "integer" },
+        "payload": { "type": "string", "description": "Firestore bytes Blob" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "scope", "allowedUids", "mimeType", "fileName", "sizeBytes", "chunkCount", "createdAt"]
+    },
+    "MediaChunk": {
+      "title": "MediaChunk",
+      "description": "Binary chunk for multi-chunk uploaded files.",
+      "type": "object",
+      "properties": {
+        "ownerUid": { "type": "string" },
+        "scope": { "type": "string", "enum": ["public", "participants", "status"] },
+        "allowedUids": { "type": "array" },
+        "chunkIndex": { "type": "integer" },
+        "payload": { "type": "string", "description": "Firestore bytes Blob" }
+      },
+      "required": ["ownerUid", "scope", "allowedUids", "chunkIndex", "payload"]
+    },
+    "Community": {
+      "title": "Community",
+      "description": "Community organizing multiple related SEPTIS groups.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "iconEmoji": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "adminUids": { "type": "array" },
+        "memberUids": { "type": "array" },
+        "groupIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "description", "iconEmoji", "ownerUid", "adminUids", "memberUids", "groupIds", "createdAt", "updatedAt"]
+    },
+    "StatusUpdate": {
+      "title": "StatusUpdate",
+      "description": "24-hour expiring WhatsApp-style status update with viewers and reactions.",
+      "type": "object",
+      "properties": {
+        "authorUid": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorPhone": { "type": "string" },
+        "authorPhotoBlobId": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image", "video"] },
+        "text": { "type": "string" },
+        "backgroundColorHex": { "type": "string" },
+        "mediaBlobId": { "type": "string" },
+        "mediaMimeType": { "type": "string" },
+        "privacy": { "type": "string", "enum": ["everyone", "contacts", "only_me"] },
+        "visibleToUids": { "type": "array" },
+        "viewerUids": { "type": "array" },
+        "reactions": { "type": "object" },
+        "expiresAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorUid", "authorName", "authorPhone", "type", "text", "privacy", "visibleToUids", "viewerUids", "reactions", "expiresAtMillis", "createdAt", "updatedAt"]
+    },
+    "CallSession": {
+      "title": "CallSession",
+      "description": "WebRTC voice/video call signaling session and call log.",
+      "type": "object",
+      "properties": {
+        "callerUid": { "type": "string" },
+        "callerName": { "type": "string" },
+        "callerPhone": { "type": "string" },
+        "calleeUid": { "type": "string" },
+        "calleeName": { "type": "string" },
+        "calleePhone": { "type": "string" },
+        "participantUids": { "type": "array" },
+        "callType": { "type": "string", "enum": ["voice", "video"] },
+        "status": { "type": "string", "enum": ["ringing", "answered", "ended", "rejected", "missed"] },
+        "offerSdp": { "type": "string" },
+        "answerSdp": { "type": "string" },
+        "durationSeconds": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["callerUid", "callerName", "calleeUid", "calleeName", "participantUids", "callType", "status", "durationSeconds", "createdAt", "updatedAt"]
+    },
+    "IceCandidateDoc": {
+      "title": "IceCandidateDoc",
+      "description": "WebRTC ICE candidate exchanged between caller and callee.",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string" },
+        "participantUids": { "type": "array" },
+        "sdpMid": { "type": "string" },
+        "sdpMLineIndex": { "type": "integer" },
+        "candidate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderUid", "participantUids", "sdpMid", "sdpMLineIndex", "candidate", "createdAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Push/in-app notification for messages, calls, status interactions, and admin alerts.",
+      "type": "object",
+      "properties": {
+        "recipientUid": { "type": "string" },
+        "senderUid": { "type": "string" },
+        "senderName": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["message", "call", "missed_call", "group", "status", "account", "info", "alert"] },
+        "referenceId": { "type": "string" },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientUid", "senderUid", "title", "message", "type", "isRead", "createdAt", "updatedAt"]
+    },
+    "ReportItem": {
+      "title": "ReportItem",
+      "description": "Abuse/spam report submitted by users and managed by Admin.",
+      "type": "object",
+      "properties": {
+        "reporterUid": { "type": "string" },
+        "reportedUid": { "type": "string" },
+        "reportedPhone": { "type": "string" },
+        "reason": { "type": "string" },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "reviewed", "resolved"] },
+        "reviewedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterUid", "reportedUid", "reason", "status", "createdAt", "updatedAt"]
     },
     "Announcement": {
       "title": "Announcement",
-      "description": "Admin-published announcement or alert for SEPTIS users.",
+      "description": "Admin-published global announcement.",
       "type": "object",
       "properties": {
         "title": { "type": "string" },
@@ -102,48 +354,14 @@
         "visibility": { "type": "string", "enum": ["all", "admin_only"] },
         "authorUid": { "type": "string" },
         "authorName": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "body", "priority", "pinned", "visibility", "authorUid", "authorName", "createdAt", "updatedAt"]
     },
-    "SeptisRecord": {
-      "title": "SeptisRecord",
-      "description": "Chat, Connect, or Share hub record stored in SEPTIS.",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "content": { "type": "string" },
-        "category": { "type": "string", "enum": ["chat", "connect", "share", "resource"] },
-        "status": { "type": "string", "enum": ["published", "restricted", "archived"] },
-        "visibility": { "type": "string", "enum": ["all", "admin_only"] },
-        "isProtected": { "type": "boolean" },
-        "authorUid": { "type": "string" },
-        "authorName": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
-      },
-      "required": ["title", "content", "category", "status", "visibility", "isProtected", "authorUid", "authorName", "createdAt", "updatedAt"]
-    },
-    "NotificationItem": {
-      "title": "NotificationItem",
-      "description": "Targeted or broadcast notification sent by Admin.",
-      "type": "object",
-      "properties": {
-        "recipientUid": { "type": "string" },
-        "title": { "type": "string" },
-        "message": { "type": "string" },
-        "type": { "type": "string", "enum": ["info", "alert", "account"] },
-        "isRead": { "type": "boolean" },
-        "senderUid": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
-      },
-      "required": ["recipientUid", "title", "message", "type", "isRead", "senderUid", "createdAt", "updatedAt"]
-    },
     "AppSettings": {
       "title": "AppSettings",
-      "description": "Global application settings controlled exclusively by Admin.",
+      "description": "Global application settings controlled by Admin.",
       "type": "object",
       "properties": {
         "appBannerMessage": { "type": "string" },
@@ -151,13 +369,13 @@
         "allowUserProfileEdits": { "type": "boolean" },
         "maintenanceMode": { "type": "boolean" },
         "updatedBy": { "type": "string" },
-        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["appBannerMessage", "allowUserPosting", "allowUserProfileEdits", "maintenanceMode", "updatedBy", "updatedAt"]
     },
     "AuditLog": {
       "title": "AuditLog",
-      "description": "Append-only activity and administrative audit log.",
+      "description": "Append-only audit trail.",
       "type": "object",
       "properties": {
         "action": { "type": "string" },
@@ -165,7 +383,7 @@
         "actorEmail": { "type": "string" },
         "targetId": { "type": "string" },
         "details": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp" }
+        "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["action", "actorUid", "actorEmail", "targetId", "details", "createdAt"]
     }
@@ -177,35 +395,79 @@
     },
     "/admin_vault/{docId}": {
       "schema": { "$ref": "#/entities/AdminVaultConfig" },
-      "description": "Confidential salted hash of the Admin Access Code."
+      "description": "Salted hash of the confidential Admin Access Code."
     },
     "/admin_sessions/{uid}": {
       "schema": { "$ref": "#/entities/AdminSession" },
-      "description": "Backend-verified admin authentication sessions."
+      "description": "Backend-verified admin sessions."
     },
     "/users/{userId}": {
       "schema": { "$ref": "#/entities/UserAccount" },
-      "description": "Individual user accounts managed by Admin and self."
+      "description": "Private SEPTIS user profile & settings."
     },
-    "/users/{userId}/security/{docId}": {
-      "schema": { "$ref": "#/entities/UserPasscode" },
-      "description": "User personal passcode hash."
+    "/users/{userId}/contacts/{contactUid}": {
+      "schema": { "$ref": "#/entities/SavedContact" },
+      "description": "User's synced SEPTIS contacts."
     },
-    "/pending_accounts/{inviteId}": {
-      "schema": { "$ref": "#/entities/PendingAccount" },
-      "description": "Pre-provisioned user invites created by Admin."
+    "/users/{userId}/blocked/{blockedUid}": {
+      "schema": { "$ref": "#/entities/BlockedUser" },
+      "description": "Blocked users list."
     },
-    "/announcements/{announcementId}": {
-      "schema": { "$ref": "#/entities/Announcement" },
-      "description": "Announcements published by Admin."
+    "/users/{userId}/starred/{messageId}": {
+      "schema": { "$ref": "#/entities/StarredMessage" },
+      "description": "User's starred messages."
     },
-    "/records/{recordId}": {
-      "schema": { "$ref": "#/entities/SeptisRecord" },
-      "description": "Shared SEPTIS Chat, Connect, Share records."
+    "/users/{userId}/chat_prefs/{conversationId}": {
+      "schema": { "$ref": "#/entities/ChatPreference" },
+      "description": "Per-user pin, archive, mute, draft, and unread counts."
+    },
+    "/phone_directory/{phoneKey}": {
+      "schema": { "$ref": "#/entities/PhoneDirectoryEntry" },
+      "description": "Unique E.164 phone index for exact phone lookup & duplicate prevention."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Direct and group chats."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Real-time messages inside a conversation."
+    },
+    "/media_blobs/{blobId}": {
+      "schema": { "$ref": "#/entities/MediaBlob" },
+      "description": "Uploaded attachment blobs."
+    },
+    "/media_blobs/{blobId}/chunks/{chunkId}": {
+      "schema": { "$ref": "#/entities/MediaChunk" },
+      "description": "Chunks for multi-part uploads."
+    },
+    "/communities/{communityId}": {
+      "schema": { "$ref": "#/entities/Community" },
+      "description": "Communities organizing groups."
+    },
+    "/statuses/{statusId}": {
+      "schema": { "$ref": "#/entities/StatusUpdate" },
+      "description": "24-hour status updates."
+    },
+    "/calls/{callId}": {
+      "schema": { "$ref": "#/entities/CallSession" },
+      "description": "WebRTC call signaling and history."
+    },
+    "/calls/{callId}/candidates/{candidateId}": {
+      "schema": { "$ref": "#/entities/IceCandidateDoc" },
+      "description": "WebRTC ICE candidates."
     },
     "/notifications/{notificationId}": {
       "schema": { "$ref": "#/entities/NotificationItem" },
-      "description": "Notifications sent by Admin to users."
+      "description": "User & admin notifications."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ReportItem" },
+      "description": "Abuse/spam reports."
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "Admin announcements."
     },
     "/app_settings/{settingId}": {
       "schema": { "$ref": "#/entities/AppSettings" },
@@ -213,7 +475,7 @@
     },
     "/audit_logs/{logId}": {
       "schema": { "$ref": "#/entities/AuditLog" },
-      "description": "Append-only activity and audit trail."
+      "description": "Append-only audit log."
     }
   }
 }

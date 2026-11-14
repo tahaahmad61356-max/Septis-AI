@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <files-path name="septis_media" path="septis_media/" />
+    <cache-path name="septis_cache" path="/" />
+</paths>
